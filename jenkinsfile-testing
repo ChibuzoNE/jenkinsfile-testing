@@ -1,19 +1,97 @@
 pipeline {
     agent any
-    tools {
-        maven "MAVEN"
-        jdk "JDK"
+
+    environment {
+        JAVA_HOME = "/usr/lib/jvm/java-17-amazon-corretto.x86_64" 
+        TOMCAT_HOME = "/home/ec2-user/apache-tomcat-7.0.94"  
+        WAR_FILE = "NumberGuessGame-1.0-SNAPSHOT.war"
+        DEPLOY_DIR = "$TOMCAT_HOME/webapps"
+        PUBLIC_IP = "3.15.168.47"
+        TOMCAT_PORT = "8081"
     }
+
     stages {
-        stage('Git clone'){
-            steps{
-                git branch: 'main', url: 'https://github.com/ChibuzoNE/jenkinsfile-testing.git'
+        stage('Clone Repository') {
+            steps {
+                git url: 'https://github.com/ChibuzoNE/jenkinsfile-testing.git', branch: 'main'
             }
         }
-         stage('build'){
-            steps{
-                echo "This code should better work o o"
+
+        stage('Check Disk Space') {
+            steps {
+                sh 'df -h'
             }
-         }
+        }
+
+        stage('Build with Maven') {
+            steps {
+                script {
+                    echo "Building project with Maven using Java 17..."
+                    sh 'mvn clean package'  // Assuming mvn is in the system PATH
+                }
+            }
+        }
+
+        stage('Check WAR File') {
+            steps {
+                script {
+                    if (!fileExists("target/$WAR_FILE")) {
+                        error "❌ WAR file not found! Build may have failed."
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Tomcat') {
+            steps {
+                script {
+                    sh """
+                    echo "Stopping Tomcat if running..."
+                    if pgrep -f 'org.apache.catalina.startup.Bootstrap'; then
+                        sudo $TOMCAT_HOME/bin/shutdown.sh || true
+                        sleep 10
+                    else
+                        echo "Tomcat is not running."
+                    fi
+
+                    echo "Ensuring correct ownership for webapps..."
+                    sudo chown -R jenkins:jenkins $DEPLOY_DIR
+                    sudo chmod -R 755 $DEPLOY_DIR
+
+                    echo "Removing old deployment..."
+                    sudo rm -rf $DEPLOY_DIR/NumberGuessGame-1.0-SNAPSHOT*
+                    sudo rm -f $DEPLOY_DIR/$WAR_FILE
+
+                    echo "Deploying new WAR file..."
+                    cp target/$WAR_FILE $DEPLOY_DIR/
+
+                    echo "Starting Tomcat..."
+                    sudo $TOMCAT_HOME/bin/startup.sh
+                    sleep 20  # Adjusted sleep time to wait for Tomcat to start
+                    """
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    echo "Checking if Tomcat is running..."
+                    sh "ps aux | grep '[o]rg.apache.catalina.startup.Bootstrap'"
+
+                    echo "Checking deployment at http://$PUBLIC_IP:$TOMCAT_PORT/NumberGuessGame-1.0-SNAPSHOT/"
+                    sh "curl -I http://$PUBLIC_IP:$TOMCAT_PORT/NumberGuessGame-1.0-SNAPSHOT/ || exit 1"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Deployment to Tomcat was successful!"
+        }
+        failure {
+            echo "❌ Deployment to Tomcat failed. Check logs."
+        }
     }
 }
