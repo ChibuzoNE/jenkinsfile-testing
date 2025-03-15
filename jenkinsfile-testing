@@ -15,4 +15,5 @@ pipeline {
                 echo "This code should better work o o"
             }
          }
+    }
 }
