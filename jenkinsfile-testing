@@ -5,6 +5,11 @@ pipeline {
         jdk "JDK"
     }
     stages {
+        stage('Git clone'){
+            steps{
+                git branch: 'main', url: 'https://github.com/ChibuzoNE/jenkinsfile-testing.git'
+            }
+        }
         stage('Initialize'){
             steps{
                 echo "PATH = ${M2_HOME}/bin:${PATH}"
