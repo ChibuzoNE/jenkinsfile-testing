@@ -1,41 +1,30 @@
 pipeline {
-    agent any  // Runs the pipeline on any available agent
-
+    agent any
+    tools {
+        maven "MAVEN"
+        jdk "JDK"
+    }
     stages {
-        stage('Clone Repository') {
-            steps {
-                git url: 'https://github.com/ChibuzoNE/jenkinsfile-testing.git', branch: 'main'
+        stage('Initialize'){
+            steps{
+                echo "PATH = ${M2_HOME}/bin:${PATH}"
+                echo "M2_HOME = /opt/maven"
             }
         }
-
         stage('Build') {
             steps {
-                sh 'echo "Building the project..."'
-                sh 'mvn clean package'  // Example for a Maven project
+                dir("/var/lib/jenkins/workspace/demopipelinetask/my-app") {
+                sh 'mvn -B -DskipTests clean package'
+                }
             }
         }
-
-        stage('Test') {
-            steps {
-                sh 'echo "Running tests..."'
-                sh 'mvn test'
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                sh 'echo "Deploying application..."'
-                // Add deployment steps here
-            }
-        }
-    }
-
+     }
     post {
-        success {
-            echo 'Pipeline executed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed!'
-        }
-    }
+       always {
+          junit(
+        allowEmptyResults: true,
+        testResults: '*/test-reports/.xml'
+      )
+      }
+   } 
 }
