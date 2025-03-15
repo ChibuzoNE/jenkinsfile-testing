@@ -1,0 +1,41 @@
+pipeline {
+    agent any  // Runs the pipeline on any available agent
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git url: 'https://github.com/ChibuzoNE/jenkinsfile-testing.git', branch: 'main'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'echo "Building the project..."'
+                sh 'mvn clean package'  // Example for a Maven project
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'echo "Running tests..."'
+                sh 'mvn test'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh 'echo "Deploying application..."'
+                // Add deployment steps here
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
